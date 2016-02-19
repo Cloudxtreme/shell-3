@@ -146,7 +146,51 @@ var commands = {
 			}
 		},
 		description: 'Backup or reload the Disk'
-	}
+	},
+
+    // --- Custom ---
+
+    nt: {
+        action: function(args) {
+            if (!args[1] || !args[2]) core.output('usage: nt -w <lh> <state> <url>');
+            else {
+                if (args[1] === '-w') {
+                    if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <lh> <state> <url>');
+                    else {
+                        var favFile = filesystem.readFile('/req/fav.rf');
+                        if (favFile === false) {
+                            filesystem.createFile('fav.rf', '/req');
+                            core.output('/req/fav.rf created');
+                        }
+
+                        try { var favObj = JSON.parse(favFile); }
+                        catch(err) { var favObj = {}; }
+
+                        utility.setValue(favObj, args[2] + '.' + args[3], args[4]);
+                        filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
+                        core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
+
+                    };
+                } else {
+                    var favFile = filesystem.readFile('/req/fav.rf');
+                    if (favFile === false) core.output('/req/fav.rf: no such file');
+                    else {
+                        try {
+                            var favObj = JSON.parse(favFile);
+                        } catch(err) {
+                            core.output('/req/fav.rf: invalid');
+                            return false;
+                        }
+
+                        var favValue = utility.getValue(favObj, args[1] + '.' + args[2])
+                        if (favValue) utility.openTab(favValue);
+                        else core.output(args[1] + ' - ' + args[2] + ': not found in favorites');
+                    }
+                }
+            }
+        },
+        description: 'Load specified URL in new tab'
+    }
 
 }
 
@@ -304,8 +348,9 @@ var filesystem = {
 		}
 	},
 
-	createFile: function(str) {
-		var locationObject = this.getObjectForLocation(this.getFullLocation(''));
+	createFile: function(str, origin) {
+        origin = origin || '';
+		var locationObject = this.getObjectForLocation(this.getFullLocation(origin));
 
 		if (locationObject[str]) return false;
 
@@ -433,7 +478,44 @@ var utility = {
 
 	currentDate: function() {
 		return new Date();
-	}
+	},
+
+    openTab: function(url) {
+        var win = window.open(url, '_blank');
+        if (win) win.focus();
+        else core.output('Popup suppressed by browser');
+    },
+
+    setValue: function(object, path, value) {
+        var a = path.split('.');
+        var o = object;
+        for (var i = 0; i < a.length - 1; i++) {
+            var n = a[i];
+            if (n in o) {
+                o = o[n];
+            } else {
+                o[n] = {};
+                o = o[n];
+            }
+        }
+        o[a[a.length - 1]] = value;
+    },
+
+    getValue: function(object, path) {
+        var o = object;
+        path = path.replace(/\[(\w+)\]/g, '.$1');
+        path = path.replace(/^\./, '');
+        var a = path.split('.');
+        while (a.length) {
+            var n = a.shift();
+            if (n in o) {
+                o = o[n];
+            } else {
+                return;
+            }
+        }
+        return o;
+    }
 
 }
 
