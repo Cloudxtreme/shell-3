@@ -105,11 +105,23 @@ var commands = {
 		action: function(args) {
 			if(!args[1]) core.output('usage: rm <directory>');
 			else {
-				var removeAnswer = filesystem.removeEntity(args[1]);
-				if (removeAnswer === false) core.output(args[1] + ': no such file or directory');
+				var answer = filesystem.removeEntity(args[1]);
+				if (answer === false) core.output(args[1] + ': no such file or directory');
 			}
 		},
 		description: 'Remove a given file or folder'
+	},
+
+	push: {
+		action: function(args) {
+			if(args[1] && args[2]) {
+				var answer = filesystem.writeFile(args[1], args[2]);
+				if (answer === false) core.output(args[1] + ': no such file or directory');
+			} else {
+				core.output('usage: push <file> <content>');
+			}
+		},
+		description: "Overwrite content of file"
 	},
 
 	//TODO: Write to files with echo and a simple editor, maybe develop a syntax for favorite files
@@ -246,12 +258,8 @@ var filesystem = {
 			inputArray = str.split('/'),
 			fileLookup = inputArray[inputArray.length - 1];
 
-		if (locationObject[fileLookup]) {
-			if (locationObject[fileLookup].type === 'file') {
-				return locationObject[fileLookup].content;
-			} else {
-				return false;
-			}
+		if (this.checkIfFileExists(locationObject, fileLookup)) {
+			return locationObject[fileLookup].content;
 		} else {
 			return false;
 		}
@@ -263,7 +271,7 @@ var filesystem = {
 			outputString = '';
 
 		$.each(locationObject, function(i, obj) {
-			outputString += i + ' ';
+			outputString += i + '   ';
 		});
 
 		return outputString;
@@ -280,6 +288,20 @@ var filesystem = {
 		};
 
 		return true;
+	},
+
+	writeFile: function(str, buffer) {
+		str = str || "";
+		var locationObject = this.getObjectForLocation(this.getParentLocation(str)),
+			inputArray = str.split('/'),
+			fileLookup = inputArray[inputArray.length - 1];
+
+		if (this.checkIfFileExists(locationObject, fileLookup)) {
+			locationObject[fileLookup].content = buffer;
+			return true;
+		} else {
+			return false;
+		}
 	},
 
 	createFile: function(str) {
@@ -319,6 +341,7 @@ var filesystem = {
 			newLocation = this.getFullLocation(str);
 		}
 
+		if (newLocation === '') return false;
 		locationObject = this.getObjectForLocation(newLocation)
 
 		if (locationObject) {
@@ -372,8 +395,16 @@ var filesystem = {
 		else return false;
 	},
 
-	checkIfFolderExists: function(obj, name) {
+	checkIfFileExists: function(obj, name) {
+		if (obj[name]) {
+			if (obj[name].type == 'file') return true;
+			else return false;
+		} else {
+			return false;
+		}
+	},
 
+	checkIfFolderExists: function(obj, name) {
 		if (obj[name]) {
 			if (obj[name].type == 'folder') return true;
 			else return false;
