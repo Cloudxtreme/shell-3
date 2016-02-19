@@ -152,7 +152,7 @@ var commands = {
 
     nt: {
         action: function(args) {
-            if (!args[1] || !args[2]) core.output('usage: nt -w <lh> <state> <url>');
+            if (!args[1] || !args[2]) core.output('usage: nt -w|-r <lh> <state> <url>');
             else {
                 if (args[1] === '-w') {
                     if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <lh> <state> <url>');
@@ -167,6 +167,28 @@ var commands = {
                         catch(err) { var favObj = {}; }
 
                         utility.setValue(favObj, args[2] + '.' + args[3], args[4]);
+                        filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
+                        core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
+
+                    };
+                } else if (args[1] === '-r') {
+                    if (!args[2] || !args[3]) core.output('usage: nt -r <lh> <state>');
+                    else {
+                        var favFile = filesystem.readFile('/req/fav.rf');
+                        if (favFile === false) {
+                            filesystem.createFile('fav.rf', '/req');
+                            core.output('/req/fav.rf: no such file');
+                            return true;
+                        }
+
+                        try { var favObj = JSON.parse(favFile); }
+                        catch(err) { var favObj = {}; }
+
+                        if (favObj[args[2]]) {
+                            if (favObj[args[2]][args[3]]) delete favObj[args[2]][args[3]];
+                            else core.output(args[2] + ' - ' + args[3] + ': not found in favorites');
+                        } else core.output(args[2] + ': not found in favorites');
+
                         filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
                         core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
 
@@ -189,7 +211,7 @@ var commands = {
                 }
             }
         },
-        description: 'Load specified URL in new tab'
+        description: 'Manage local favorites, read, write or delete entries.'
     }
 
 }
