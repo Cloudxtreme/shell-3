@@ -7,7 +7,7 @@ var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.4'
+	version: '0.0.6'
 };
 
 var commands = {
@@ -31,12 +31,17 @@ var commands = {
 
 	man: {
 		action: function(args) {
-			if (commands[args[1]]) core.output(commands[args[1]].description);
-			else {
+			if (commands[args[1]]) {
+                if (commands[args[1]].man) {
+                    $.each(commands[args[1]].man, function(i, obj) { core.output(obj); });
+                } else {
+                    core.output(commands[args[1]].description);
+                }
+            } else {
 				core.output("Specified command not found");
 			}
 		},
-		description: "Explains commands"
+		description: "Echos the description or, if available, the manual of the given command"
 	},
 
 	uname: {
@@ -60,7 +65,7 @@ var commands = {
                 core.output(i + ' - ' + obj.description);
             });
         },
-        description: "Lists all commands"
+        description: "Lists all commands with descriptions"
     },
 
 	// --- File System ---
@@ -82,9 +87,12 @@ var commands = {
 
 	cat: {
 		action: function(args) {
-			var fileContent = filesystem.readFile(args[1]);
-			if (fileContent !== false) core.output(fileContent);
-			else core.output(args[1] + ': no such file');
+            if (!args[1]) core.output('usage: cat <directory>');
+            else {
+                var fileContent = filesystem.readFile(args[1]);
+                if (fileContent !== false) core.output(fileContent);
+                else core.output(args[1] + ': no such file');
+            }
 		},
 		description: "Echo content of file"
 	},
@@ -140,7 +148,7 @@ var commands = {
 
 	lstore: {
 		action: function(args) {
-			if (args[1] === 'read') {
+			if (args[1] === '--read' || args[1] === '-r') {
 				var readObject = localStorage.getItem('filesystem');
 				if (readObject) {
                     var byteSize = utility.bytesToSize(utility.getByteCount(readObject));
@@ -149,21 +157,34 @@ var commands = {
 				} else {
 					core.output('No backup found');
 				}
-			} else if (args[1] === 'write') {
+			} else if (args[1] === '--write' || args[1] === '-w') {
 				localStorage.setItem('filesystem', JSON.stringify(filesystem.home));
 				core.output('Written to localstorage');
-			} else {
-				core.output('usage: lstore read|write');
+			} else if (args[1] === '--help' || args[1] === '-h') {
+                core.runCommand(['man', 'lstore']);
+            } else {
+				core.output('help page: lstore --help');
 			}
 		},
-		description: 'Backup or reload the Disk'
+		description: 'Backup or load the Disk',
+        man: [
+            "lstore 0.1",
+            "Backup or load the Disk",
+            "Usage:",
+            "$ lstore -r|--read",
+            "Load Disk from localstorage",
+            "$ lstore -w|--write",
+            "Write Disk to localstorage",
+            "$ lstore -h|--help",
+            "Display this page"
+        ]
 	},
 
     // --- Custom ---
 
     nt: {
         action: function(args) {
-            if (!args[1]) core.output('usage: nt -w|-r|-l <group> <name> <url>');
+            if (!args[1]) core.output('help page: nt --help');
             else {
                 if (args[1] === '-w') {
                     if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <group> <name> <url>');
@@ -195,8 +216,10 @@ var commands = {
                     var favObj = filesystem.readReqFile('fav', false);
                     if (favObj === false) core.output('/req/fav.rf: no such file');
                     else {
-
+                        $.each(favObj, function(i, obj) { core.output(i); });
                     }
+                } else if (args[1] === '-h' || args[1] === '--help') {
+                    core.runCommand(['man', 'nt']);
                 } else {
                     var favObj = filesystem.readReqFile('fav', false);
                     if (favObj === false) core.output('/req/fav.rf: no such file');
@@ -218,7 +241,25 @@ var commands = {
                 }
             }
         },
-        description: 'Manage local favorites, read, write or delete entries.'
+        description: 'Manage favorites, read, write or delete entries.',
+        man: [
+            "nt 0.1",
+            "Manage favorites, read, write or delete entries. ",
+            "nt reads and writes to /req/fav.rf",
+            "Usage:",
+            "$ nt <group> <name>",
+            "Open the given entry in a new tab",
+            "$ nt <group>",
+            "List all entries in the given group",
+            "$ nt -w <group> <name> <url>",
+            "Write the URL to the favorites",
+            "$ nt -r <group> <name>",
+            "Remove the given entry",
+            "$ nt -l",
+            "List all groups",
+            "$ nt -h|--help",
+            "Display this page"
+        ]
     },
 
     conf: {
@@ -547,7 +588,7 @@ var filesystem = {
 
 $(function() {
 	core.runCommand(['uname', '-a']);
-	core.runCommand(['lstore', 'read']);
+	core.runCommand(['lstore', '-r']);
 
 	$(document).keydown(function(e) {
 		if (e.which === 38) {
