@@ -7,7 +7,7 @@ var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.1'
+	version: '0.0.4'
 };
 
 var commands = {
@@ -52,6 +52,16 @@ var commands = {
 		},
 		description: "Print operating system name"
 	},
+
+    help: {
+        action: function(args) {
+            core.output('Available commands:');
+            $.each(commands, function(i, obj) {
+                core.output(i + ' - ' + obj.description);
+            });
+        },
+        description: "Lists all commands"
+    },
 
 	// --- File System ---
 
@@ -124,7 +134,7 @@ var commands = {
 		description: "Overwrite content of file"
 	},
 
-	//TODO: Write to files with echo and a simple editor, maybe develop a syntax for favorite files
+	//TODO: Write to files with echo and a simple editor
 
 	// --- Meta ---
 
@@ -133,8 +143,9 @@ var commands = {
 			if (args[1] === 'read') {
 				var readObject = localStorage.getItem('filesystem');
 				if (readObject) {
+                    var byteSize = utility.bytesToSize(utility.getByteCount(readObject));
 					filesystem.home = JSON.parse(readObject);
-					core.output('Disk loaded');
+					core.output('Disk loaded  (' + byteSize + ')');
 				} else {
 					core.output('No backup found');
 				}
@@ -152,69 +163,96 @@ var commands = {
 
     nt: {
         action: function(args) {
-            if (!args[1] || !args[2]) core.output('usage: nt -w|-r <lh> <state> <url>');
+            if (!args[1]) core.output('usage: nt -w|-r|-l <group> <name> <url>');
             else {
                 if (args[1] === '-w') {
-                    if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <lh> <state> <url>');
+                    if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <group> <name> <url>');
                     else {
-                        var favFile = filesystem.readFile('/req/fav.rf');
-                        if (favFile === false) {
-                            if (filesystem.getObjectForLocation('/req') === false) filesystem.createDir('req', '/');
-                            filesystem.createFile('fav.rf', '/req');
-                            core.output('/req/fav.rf created');
-                        }
-
-                        try { var favObj = JSON.parse(favFile); }
-                        catch(err) { var favObj = {}; }
-                        if (favObj === false) favObj = {};
+                        var favObj = filesystem.readReqFile('fav', true);
 
                         utility.setValue(favObj, args[2] + '.' + args[3], args[4]);
-                        filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
+
+                        filesystem.writeReqFile('fav', favObj);
                         core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
 
                     };
                 } else if (args[1] === '-r') {
-                    if (!args[2] || !args[3]) core.output('usage: nt -r <lh> <state>');
+                    if (!args[2] || !args[3]) core.output('usage: nt -r <group> <name>');
                     else {
-                        var favFile = filesystem.readFile('/req/fav.rf');
-                        if (favFile === false) {
-                            filesystem.createFile('fav.rf', '/req');
-                            core.output('/req/fav.rf: no such file');
-                            return true;
-                        }
-
-                        try { var favObj = JSON.parse(favFile); }
-                        catch(err) { var favObj = {}; }
+                        var favObj = filesystem.readReqFile('fav', true);
 
                         if (favObj[args[2]]) {
                             if (favObj[args[2]][args[3]]) delete favObj[args[2]][args[3]];
                             else core.output(args[2] + ' - ' + args[3] + ': not found in favorites');
                         } else core.output(args[2] + ': not found in favorites');
 
-                        filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
+                        
+                        filesystem.writeReqFile('fav', favObj);
                         core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
 
                     };
-                } else {
-                    var favFile = filesystem.readFile('/req/fav.rf');
-                    if (favFile === false) core.output('/req/fav.rf: no such file');
+                } else if (args[1] === '-l') {
+                    var favObj = filesystem.readReqFile('fav', false);
+                    if (favObj === false) core.output('/req/fav.rf: no such file');
                     else {
-                        try {
-                            var favObj = JSON.parse(favFile);
-                        } catch(err) {
-                            core.output('/req/fav.rf: invalid');
-                            return false;
+
+                    }
+                } else {
+                    var favObj = filesystem.readReqFile('fav', false);
+                    if (favObj === false) core.output('/req/fav.rf: no such file');
+                    else {
+                        if (args[2]) {
+                            var favValue = utility.getValue(favObj, args[1] + '.' + args[2])
+                            if (favValue) utility.openTab(favValue);
+                            else core.output(args[1] + ' - ' + args[2] + ': not found in favorites');
+                        } else {
+                            var favGroup = utility.getValue(favObj, args[1]);
+                            if (favGroup) {
+                                $.each(favGroup, function(i, obj) { core.output(i); });
+                            } else core.output(args[1] + ': not found in favorites');
                         }
 
-                        var favValue = utility.getValue(favObj, args[1] + '.' + args[2])
-                        if (favValue) utility.openTab(favValue);
-                        else core.output(args[1] + ' - ' + args[2] + ': not found in favorites');
+                        
+                        
                     }
                 }
             }
         },
         description: 'Manage local favorites, read, write or delete entries.'
+    },
+
+    conf: {
+        action: function(args) {
+            if (!args[1]) core.output('usage: conf -u|-r|-w <key> <value>');
+            else {
+                var confObj = filesystem.readReqFile('conf', false);
+                if (confObj === false) {
+                    core.output('/req/conf.rf: no such file');
+                    return false;
+                }
+
+                if (args[1] === '-u') {
+                    var count = 0;
+                    $.each(confObj, function(i, obj) {
+                        utility.parseConfig(i, obj);
+                        count++;
+                    });
+                    core.output('Read ' + count + ' config entries');
+                } else if (args[1] === '-w') {
+                    if (!args[2] || !args[3]) core.output('usage: conf -w <key> <value>');
+                    else {
+                        confObj[args[2]] = args[3];
+                        filesystem.writeReqFile('conf', confObj);
+                    }
+                } else if (args[1] === '-r') {
+                    filesystem.writeReqFile('conf', {});
+                    core.output('/req/conf.rf: cleared');
+                } else core.output('usage: conf -u|-r|-w <key> <value>')
+            }
+        },
+        description: 'Update or remove configuration files (WIP)'
     }
+
 
 }
 
@@ -481,8 +519,30 @@ var filesystem = {
 		} else {
 			return false;
 		}
-	}
+	},
 
+    // --- extended ---
+
+    readReqFile: function(name, createIfMissing) {
+        var reqFile = filesystem.readFile('/req/' + name + '.rf');
+        if (reqFile === false && createIfMissing) {
+            if (filesystem.getObjectForLocation('/req') === false) filesystem.createDir('req', '/');
+            filesystem.createFile(name + '.rf', '/req');
+            core.output('/req/' + name + '.rf created');
+        } else if (reqFile === false && !createIfMissing) {
+            return false;
+        }
+
+        try { var reqObj = JSON.parse(reqFile); }
+        catch(err) { var reqObj = {}; }
+        if (reqObj === false) reqObj = {};
+
+        return reqObj;
+    },
+
+    writeReqFile: function(name, object) {
+        filesystem.writeFile('/req/' + name + '.rf', JSON.stringify(object));
+    }
 }
 
 $(function() {
@@ -505,10 +565,26 @@ var utility = {
 		return new Date();
 	},
 
+    getByteCount: function(s) {
+        return encodeURI(s).split(/%..|./).length - 1;
+    },
+
+    bytesToSize: function(bytes) {
+        var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        if (bytes == 0) return '0 Byte';
+        var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+        return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+    },
+
     openTab: function(url) {
         var win = window.open(url, '_blank');
         if (win) win.focus();
         else core.output('Popup suppressed by browser');
+    },
+
+    parseConfig: function(key, val) {
+        // TODO
+        //$('#shell').css(key, val);
     },
 
     setValue: function(object, path, value) {
