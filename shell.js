@@ -159,12 +159,14 @@ var commands = {
                     else {
                         var favFile = filesystem.readFile('/req/fav.rf');
                         if (favFile === false) {
+                            if (filesystem.getObjectForLocation('/req') === false) filesystem.createDir('req', '/');
                             filesystem.createFile('fav.rf', '/req');
                             core.output('/req/fav.rf created');
                         }
 
                         try { var favObj = JSON.parse(favFile); }
                         catch(err) { var favObj = {}; }
+                        if (favObj === false) favObj = {};
 
                         utility.setValue(favObj, args[2] + '.' + args[3], args[4]);
                         filesystem.writeFile('/req/fav.rf', JSON.stringify(favObj));
@@ -343,8 +345,9 @@ var filesystem = {
 		return outputString;
 	},
 
-	createDir: function(str) {
-		var locationObject = this.getObjectForLocation(this.getFullLocation(''));
+	createDir: function(str, origin) {
+        origin = origin || '';
+		var locationObject = this.getObjectForLocation(this.getFullLocation(origin));
 
 		if (locationObject[str]) return false;
 
