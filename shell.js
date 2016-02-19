@@ -135,7 +135,9 @@ var commands = {
 var core = {
 
 	vars: {
-		inputActive: true
+		inputActive: true,
+		inputHistory: [],
+		inputHistoryPosition: null
 	},
 
 	focusInput: function() {
@@ -147,6 +149,7 @@ var core = {
 	parseInput: function() {
 		if (!this.vars.inputActive) return false;
 		this.suspendInput();
+		this.resetHistory();
 
 		var input = $('#input').val(),
 			inputArray = input.split(' ');
@@ -154,7 +157,10 @@ var core = {
 		this.output(input, true);
 		$('#input').val('').focus();
 
-		if (input) this.runCommand(inputArray);
+		if (input) {
+			this.runCommand(inputArray);
+			this.vars.inputHistory.push(input);
+		}
 		this.activateInput();
 	},
 
@@ -194,6 +200,27 @@ var core = {
 
 	clearOutput: function() {
 		$('#output').html('');
+	},
+
+	// --- History ---
+
+	getInputHistory: function(i) {
+		var historyData = this.vars.inputHistory[this.vars.inputHistory.length - (i + 1)];
+		if (historyData) return historyData;
+		else return false;
+	},
+
+	resetHistory: function() {
+		this.vars.inputHistoryPosition = null;
+	},
+
+	checkInputHistory: function() {
+		if (this.vars.inputHistoryPosition === null) this.vars.inputHistoryPosition = 0;
+		else this.vars.inputHistoryPosition++;
+
+		var checkedHistory = this.getInputHistory(this.vars.inputHistoryPosition);
+		if (checkedHistory !== false) $('#input').val(checkedHistory);
+		utility.moveCursorToEnd();
 	}
 
 }
@@ -347,12 +374,34 @@ var filesystem = {
 $(function() {
 	core.runCommand(['uname', '-a']);
 	core.runCommand(['lstore', 'read']);
+
+	$(document).keydown(function(e) {
+		if (e.which === 38) {
+			core.checkInputHistory();
+		} else if (e.which === 40) {
+			core.resetHistory();
+			$('#input').val('').focus();
+		}
+	});
 });
 
 var utility = {
 
 	currentDate: function() {
 		return new Date();
+	},
+
+	moveCursorToEnd: function() {
+		//TODO: Get this to work
+		var el = document.getElementById('input');
+		if (typeof el.selectionStart == "number") {
+			el.selectionStart = el.selectionEnd = el.value.length;
+		} else if (typeof el.createTextRange != "undefined") {
+			el.focus();
+			var range = el.createTextRange();
+			range.collapse(false);
+			range.select();
+		}
 	}
 
 }

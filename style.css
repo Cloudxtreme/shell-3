@@ -46,6 +46,11 @@ body {
 	margin: 0;
 }
 
+#shell input::selection {
+	color: #fff;
+	background-color: rgb(181, 255, 181);
+}
+
 #shell #output .output-block.output-block-bash:before,
 #shell form:before {
 	position: absolute;
