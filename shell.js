@@ -82,7 +82,10 @@ var commands = {
 	mkdir: {
 		action: function(args) {
 			if(!args[1]) core.output('usage: mkdir <directory>');
-			else filesystem.createDir(args[1]);
+			else {
+				var answer = filesystem.createDir(args[1]);
+				if(!answer) core.output(args[1] + ': Folder exists');
+			}
 		},
 		description: 'Create a folder with the specified name'
 	},
@@ -90,7 +93,10 @@ var commands = {
 	touch: {
 		action: function(args) {
 			if(!args[1]) core.output('usage: touch <directory>');
-			else filesystem.createFile(args[1]);
+			else {
+				var answer = filesystem.createFile(args[1]);
+				if(!answer) core.output(args[1] + ': File exists');
+			}
 		},
 		description: 'Create a file with the specified name'
 	},
@@ -219,8 +225,7 @@ var core = {
 		else this.vars.inputHistoryPosition++;
 
 		var checkedHistory = this.getInputHistory(this.vars.inputHistoryPosition);
-		if (checkedHistory !== false) $('#input').val(checkedHistory);
-		utility.moveCursorToEnd();
+		if (checkedHistory !== false) $('#input').val(checkedHistory).putCursorAtEnd();
 	}
 
 }
@@ -267,19 +272,27 @@ var filesystem = {
 	createDir: function(str) {
 		var locationObject = this.getObjectForLocation(this.getFullLocation(''));
 
+		if (locationObject[str]) return false;
+
 		locationObject[str] = {
 			type: 'folder',
 			content: {}
-		}
+		};
+
+		return true;
 	},
 
 	createFile: function(str) {
 		var locationObject = this.getObjectForLocation(this.getFullLocation(''));
 
+		if (locationObject[str]) return false;
+
 		locationObject[str] = {
 			type: 'file',
 			content: ''
-		}
+		};
+
+		return true;
 	},
 
 	removeEntity: function(str) {
@@ -389,20 +402,29 @@ var utility = {
 
 	currentDate: function() {
 		return new Date();
-	},
-
-	moveCursorToEnd: function() {
-		//TODO: Get this to work
-		var el = document.getElementById('input');
-		if (typeof el.selectionStart == "number") {
-			el.selectionStart = el.selectionEnd = el.value.length;
-		} else if (typeof el.createTextRange != "undefined") {
-			el.focus();
-			var range = el.createTextRange();
-			range.collapse(false);
-			range.select();
-		}
 	}
 
 }
+
+jQuery.fn.putCursorAtEnd = function() {
+
+  return this.each(function() {
+
+    $(this).focus();
+
+    if (this.setSelectionRange) {
+
+      var len = $(this).val().length * 2;
+
+      this.setSelectionRange(len, len);
+    
+    } else {
+
+      $(this).val($(this).val());
+      
+    }
+
+  });
+
+};
 
