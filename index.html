@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Shell</title>
+	<link href="http://fonts.googleapis.com/css?family=VT323" rel="stylesheet" type="text/css">
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+	<script type="text/javascript" src="shell.js"></script>
+</head>
+<body>
+
+	<div id="overlay" onclick="core.focusInput()"></div>
+
+	<div id="wrapper">
+		
+		<div id="shell">
+
+			<div id="output"></div>
+			
+			<form onsubmit="core.parseInput(); return false;" id="input-wrap">
+				<input type="text" autofocus="true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="" id="input" onclick="">
+				<button>Go!</button>
+			</form>
+
+		</div>
+
+	</div>
+
+</body>
+</html>
