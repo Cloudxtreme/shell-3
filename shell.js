@@ -7,7 +7,7 @@ var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.6'
+	version: '0.0.7'
 };
 
 var commands = {
@@ -23,7 +23,8 @@ var commands = {
 
 	echo: {
 		action: function(args) {
-			var outputString = args.join(' ').substr(5);
+            args.splice(0,1);
+            var outputString = args.join(' ');
 			core.output(outputString);
 		},
 		description: "Writes string to the standard output"
@@ -292,6 +293,18 @@ var commands = {
             }
         },
         description: 'Update or remove configuration files (WIP)'
+    },
+
+    search: {
+        action: function(args) {
+            if (!args[1]) core.output('usage: search <string>');
+            else {
+                args.splice(0,1);
+                var searchString = args.join(' ');
+                utility.openTab("https://www.google.de/#q=" + searchString);
+            }
+        },
+        description: 'Search for the string with a search engine'
     }
 
 
