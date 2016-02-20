@@ -1,10 +1,11 @@
 
-#overlay {
+#underlay {
 	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
 	bottom: 0;
+	z-index: 10;
 }
 
 body {
@@ -12,10 +13,22 @@ body {
 	background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAIAAAAiOjnJAAAD0ElEQVR4Ae3WsQ2AMBDFUCAZAFGw/6KREDvE3bsBXFiW7p/38x6Ogd0Grt1APAZ+A8LSQWJAWIlW0DnGYIGB7QbmWms7FJABr1ADiQFhJVpBhaWBxIDxnmgFNd41kBjwChOtoMLSQGJAWIlWUONdA4kB4z3RCuoVaiAxIKxEK6iwNJAYMN4TraDGuwYSA15hohVUWBpIDAgr0QpqvGsgMWC8J1pBvUINJAaElWgFFZYGEgPGe6IV1HjXQGLAK0y0ggpLA4kBYSVaQY13DSQGjPdEK6hXqIHEgLASraDC0kBiwHhPtIIa7xpIDHiFiVZQYWkgMSCsRCuo8a6BxIDxnmgF9Qo1kBgQVqIVVFgaSAwY74lWUONdA4kBrzDRCiosDSQGhJVoBTXeNZAYMN4TraBeoQYSA8JKtIIKSwOJAeM90QpqvGsgMeAVJlpBhaWBxICwEq2gxrsGEgPGe6IV1CvUQGJAWIlWUGFpIDFgvCdaQY13DSQGvMJEK6iwNJAYEFaiFdR410BiwHhPtIJ6hRpIDAgr0QoqLA0kBoz3RCuo8a6BxIBXmGgFFZYGEgPCSrSCGu8aSAwY74lWUK9QA4kBYSVaQYWlgcSA8Z5oBTXeNZAY8AoTraDC0kBiQFiJVlDjXQOJAeM90QrqFWogMSCsRCuosDSQGDDeE62gxrsGEgNeYaIVVFgaSAwIK9EKarxrIDFgvCdaQb1CDSQGhJVoBRWWBhIDxnuiFdR410BiwCtMtIIKSwOJAWElWkGNdw0kBoz3RCuoV6iBxICwEq2gwtJAYsB4T7SCGu8aSAx4hYlWUGFpIDEgrEQrqPGugcSA8Z5oBfUKNZAYEFaiFVRYGkgMGO+JVlDjXQOJAa8w0QoqLA0kBoSVaAU13jWQGDDeE62gXqEGEgPCSrSCCksDiQHjPdEKarxrIDHgFSZaQYWlgcSAsBKtoMa7BhIDxnuiFdQr1EBiQFiJVlBhaSAxYLwnWkGNdw0kBrzCRCuosDSQGBBWohXUeNdAYsB4T7SCeoUaSAwIK9EKKiwNJAaM90QrqPGugcSAV5hoBRWWBhIDwkq0ghrvGkgMGO+JVlCvUAOJAWElWkGFpYHEgPGeaAU13jWQGPAKE62gwtJAYkBYiVZQ410DiQHjPdEK6hVqIDEgrEQrqLA0kBgw3hOtoMa7BhIDXmGiFVRYGkgMCCvRCmq8ayAxYLwnWkG9Qg0kBoSVaAUVlgYSA8Z7ohXUeNdAYsArTLSCCksDiQFhJVpBjXcNJAaM90QrqFeogcSAsBKtoMLSQGLAeE+0gn6NXXdvK2/RcgAAAABJRU5ErkJggg==);
 }
 
+#wrapper {
+	position: relative;
+	z-index: 20;
+}
+
 #shell {
 	font: 400 19px VT323, monospace;
 	color: lightgreen;
 	text-shadow: 0 0 15px;
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+}
+
+::selection {
+	color: #fff !important;
+	background-color: rgb(181, 255, 181) !important;
 }
 
 #shell #output {
@@ -43,11 +56,6 @@ body {
 	line-height: 25px;
 	padding: 0;
 	margin: 0;
-}
-
-#shell input::selection {
-	color: #fff;
-	background-color: rgb(181, 255, 181);
 }
 
 #shell #output .output-block.output-block-bash:before,

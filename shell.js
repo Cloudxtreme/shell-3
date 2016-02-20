@@ -7,7 +7,7 @@ var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.7'
+	version: '0.0.8'
 };
 
 var commands = {
