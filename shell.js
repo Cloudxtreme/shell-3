@@ -7,7 +7,7 @@ var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.8'
+	version: '0.0.9'
 };
 
 var commands = {
@@ -50,8 +50,10 @@ var commands = {
 			var output = env.osName;
 
 			$.each(args, function(i, obj) { 
-				if (obj == '-a') {
-					output += ' ' + env.host + ' ' + env.version + ' ' + env.user + ' ' + utility.currentDate()
+				if (obj === '-a') {
+					output = env.osName + ' ' + env.host + ' ' + env.version + ' ' + env.user + ' ' + utility.currentDate()
+				} else if (obj === '--host') {
+					output = navigator.userAgent || navigator.appVersion || 'Host not detected';
 				}
 			});
 			core.output(output);
@@ -160,7 +162,7 @@ var commands = {
 				}
 			} else if (args[1] === '--write' || args[1] === '-w') {
 				localStorage.setItem('filesystem', JSON.stringify(filesystem.home));
-				core.output('Written to localstorage');
+				if (args[2] !== '-s') core.output('Written to localstorage');
 			} else if (args[1] === '--help' || args[1] === '-h') {
                 core.runCommand(['man', 'lstore']);
             } else {
@@ -196,6 +198,7 @@ var commands = {
 
                         filesystem.writeReqFile('fav', favObj);
                         core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
+                        core.runCommand(['lstore', '-w', '-s']);
 
                     };
                 } else if (args[1] === '-r') {
@@ -253,7 +256,7 @@ var commands = {
             "$ nt <group>",
             "List all entries in the given group",
             "$ nt -w <group> <name> <url>",
-            "Write the URL to the favorites",
+            "Write the URL to the favorites. This automatically saves the Disk.",
             "$ nt -r <group> <name>",
             "Remove the given entry",
             "$ nt -l",
@@ -600,9 +603,12 @@ var filesystem = {
 }
 
 $(function() {
+	// Startup
+	core.runCommand(['uname', '--host']);
 	core.runCommand(['uname', '-a']);
 	core.runCommand(['lstore', '-r']);
 
+	// Up/Down Arrow Detection
 	$(document).keydown(function(e) {
 		if (e.which === 38) {
 			core.checkInputHistory();
