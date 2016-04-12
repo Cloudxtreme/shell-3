@@ -47,15 +47,12 @@ var commands = {
 
 	uname: {
 		action: function(args) {
-			var output = env.osName;
+			var output = env.osName,
+				input = utility.parseFlags(args);
 
-			$.each(args, function(i, obj) { 
-				if (obj === '-a') {
-					output = env.osName + ' ' + env.host + ' ' + env.version + ' ' + env.user + ' ' + utility.currentDate()
-				} else if (obj === '--host') {
-					output = navigator.userAgent || navigator.appVersion || 'Host not detected';
-				}
-			});
+			if (input.flags['a'])  output = env.osName + ' ' + env.host + ' ' + env.version + ' ' + env.user + ' ' + utility.currentDate()
+			else if (input.flags['host']) output = navigator.userAgent || navigator.appVersion || 'Host not detected';
+
 			core.output(output);
 		},
 		description: "Print operating system name"
@@ -75,7 +72,18 @@ var commands = {
 
 	ls: {
 		action: function(args) {
-			core.output(filesystem.readDir(args[1]));
+
+			var input = utility.parseFlags(args),
+				foundArray = filesystem.readDir(input.vals[0]),
+				output = "";
+
+			$.each(foundArray, function(i, obj) {
+				if (obj.substring(0,1) === "." && !input.flags["a"]) return true;
+				output += obj + ' ';
+			});
+
+			core.output(output);
+
 		},
 		description: "List directory contents"
 	},
@@ -151,19 +159,22 @@ var commands = {
 
 	lstore: {
 		action: function(args) {
-			if (args[1] === '--read' || args[1] === '-r') {
+
+			var input = utility.parseFlags(args);
+
+			if (input.flags['read'] || input.flags['r']) {
 				var readObject = localStorage.getItem('filesystem');
 				if (readObject) {
                     var byteSize = utility.bytesToSize(utility.getByteCount(readObject));
 					filesystem.home = JSON.parse(readObject);
-					core.output('Disk loaded  (' + byteSize + ')');
+					if (!input.flags['s']) core.output('Disk loaded  (' + byteSize + ')');
 				} else {
-					core.output('No backup found');
+					if (!input.flags['s']) core.output('No backup found');
 				}
-			} else if (args[1] === '--write' || args[1] === '-w') {
+			} else if (input.flags['write'] || input.flags['w']) {
 				localStorage.setItem('filesystem', JSON.stringify(filesystem.home));
-				if (args[2] !== '-s') core.output('Written to localstorage');
-			} else if (args[1] === '--help' || args[1] === '-h') {
+				if (!input.flags['s']) core.output('Written to localstorage');
+			} else if (input.flags['help'] || input.flags['h']) {
                 core.runCommand(['man', 'lstore']);
             } else {
 				core.output('help page: lstore --help');
@@ -179,7 +190,9 @@ var commands = {
             "$ lstore -w|--write",
             "Write Disk to localstorage",
             "$ lstore -h|--help",
-            "Display this page"
+            "Display this page",
+            "Flags:",
+            "-s : Silent (no output)"
         ]
 	},
 
@@ -187,61 +200,65 @@ var commands = {
 
     nt: {
         action: function(args) {
-            if (!args[1]) core.output('help page: nt --help');
-            else {
-                if (args[1] === '-w') {
-                    if (!args[2] || !args[3] || !args[4]) core.output('usage: nt -w <group> <name> <url>');
-                    else {
-                        var favObj = filesystem.readReqFile('fav', true);
+            if (!args[1]) {
+            	core.output('help page: nt --help');
+            	return;
+            }
 
-                        utility.setValue(favObj, args[2] + '.' + args[3], args[4]);
+        	var input = utility.parseFlags(args);
 
-                        filesystem.writeReqFile('fav', favObj);
-                        core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
-                        core.runCommand(['lstore', '-w', '-s']);
+            if (input.flags['w']) {
+                if (!input.vals[2]) core.output('usage: nt -w <group> <name> <url>');
+                else {
+                    var favObj = filesystem.readReqFile('fav', true);
 
-                    };
-                } else if (args[1] === '-r') {
-                    if (!args[2] || !args[3]) core.output('usage: nt -r <group> <name>');
-                    else {
-                        var favObj = filesystem.readReqFile('fav', true);
+                    utility.setValue(favObj, input.vals[0] + '.' + input.vals[1], input.vals[2]);
 
-                        if (favObj[args[2]]) {
-                            if (favObj[args[2]][args[3]]) delete favObj[args[2]][args[3]];
-                            else core.output(args[2] + ' - ' + args[3] + ': not found in favorites');
-                        } else core.output(args[2] + ': not found in favorites');
+                    filesystem.writeReqFile('fav', favObj);
+                    core.output(input.vals[0] + ' - ' + input.vals[1] + ': written to /req/fav.rf');
+                    core.runCommand(['lstore', '-ws']);
 
-                        
-                        filesystem.writeReqFile('fav', favObj);
-                        core.output(args[2] + ' - ' + args[3] + ': written to /req/fav.rf');
+                };
+            } else if (input.flags['r']) {
+                if (!input.vals[1]) core.output('usage: nt -r <group> <name>');
+                else {
+                    var favObj = filesystem.readReqFile('fav', true);
 
-                    };
-                } else if (args[1] === '-l') {
-                    var favObj = filesystem.readReqFile('fav', false);
-                    if (favObj === false) core.output('/req/fav.rf: no such file');
-                    else {
-                        $.each(favObj, function(i, obj) { core.output(i); });
+                    if (favObj[input.vals[0]]) {
+                        if (favObj[input.vals[0]][input.vals[1]]) delete favObj[input.vals[0]][input.vals[1]];
+                        else core.output(input.vals[0] + ' - ' + input.vals[1] + ': not found in favorites');
+                    } else core.output(input.vals[0] + ': not found in favorites');
+
+                    
+                    filesystem.writeReqFile('fav', favObj);
+                    core.output(input.vals[0] + ' - ' + input.vals[1] + ': written to /req/fav.rf');
+
+                };
+            } else if (input.flags['l']) {
+                var favObj = filesystem.readReqFile('fav', false);
+                if (favObj === false) core.output('/req/fav.rf: no such file');
+                else {
+                    $.each(favObj, function(i, obj) { core.output(i); });
+                }
+            } else if (input.flags['h'] || input.flags['help']) {
+                core.runCommand(['man', 'nt']);
+            } else {
+                var favObj = filesystem.readReqFile('fav', false);
+                if (favObj === false) core.output('/req/fav.rf: no such file');
+                else {
+                    if (input.vals[1]) {
+                        var favValue = utility.getValue(favObj, input.vals[0] + '.' + input.vals[1])
+                        if (favValue) utility.openTab(favValue);
+                        else core.output(input.vals[0] + ' - ' + input.vals[1] + ': not found in favorites');
+                    } else {
+                        var favGroup = utility.getValue(favObj, input.vals[0]);
+                        if (favGroup) {
+                            $.each(favGroup, function(i, obj) { core.output(i); });
+                        } else core.output(input.vals[0] + ': not found in favorites');
                     }
-                } else if (args[1] === '-h' || args[1] === '--help') {
-                    core.runCommand(['man', 'nt']);
-                } else {
-                    var favObj = filesystem.readReqFile('fav', false);
-                    if (favObj === false) core.output('/req/fav.rf: no such file');
-                    else {
-                        if (args[2]) {
-                            var favValue = utility.getValue(favObj, args[1] + '.' + args[2])
-                            if (favValue) utility.openTab(favValue);
-                            else core.output(args[1] + ' - ' + args[2] + ': not found in favorites');
-                        } else {
-                            var favGroup = utility.getValue(favObj, args[1]);
-                            if (favGroup) {
-                                $.each(favGroup, function(i, obj) { core.output(i); });
-                            } else core.output(args[1] + ': not found in favorites');
-                        }
 
-                        
-                        
-                    }
+                    
+                    
                 }
             }
         },
@@ -268,32 +285,36 @@ var commands = {
 
     conf: {
         action: function(args) {
-            if (!args[1]) core.output('usage: conf -u|-r|-w <key> <value>');
-            else {
-                var confObj = filesystem.readReqFile('conf', false);
-                if (confObj === false) {
-                    core.output('/req/conf.rf: no such file');
-                    return false;
-                }
-
-                if (args[1] === '-u') {
-                    var count = 0;
-                    $.each(confObj, function(i, obj) {
-                        utility.parseConfig(i, obj);
-                        count++;
-                    });
-                    core.output('Read ' + count + ' config entries');
-                } else if (args[1] === '-w') {
-                    if (!args[2] || !args[3]) core.output('usage: conf -w <key> <value>');
-                    else {
-                        confObj[args[2]] = args[3];
-                        filesystem.writeReqFile('conf', confObj);
-                    }
-                } else if (args[1] === '-r') {
-                    filesystem.writeReqFile('conf', {});
-                    core.output('/req/conf.rf: cleared');
-                } else core.output('usage: conf -u|-r|-w <key> <value>')
+            if (!args[1]) {
+            	core.output('usage: conf -u|-r|-w <key> <value>');
+            	return;
             }
+
+            var confObj = filesystem.readReqFile('conf', false),
+            	input = utility.parseFlags(args);
+
+            if (confObj === false) {
+                core.output('/req/conf.rf: no such file');
+                return false;
+            }
+
+            if (input.flags['u']) {
+                var count = 0;
+                $.each(confObj, function(i, obj) {
+                    utility.parseConfig(i, obj);
+                    count++;
+                });
+                core.output('Read ' + count + ' config entries');
+            } else if (input.flags['w']) {
+                if (!input.vals[1]) core.output('usage: conf -w <key> <value>');
+                else {
+                    confObj[input.vals[0]] = input.vals[1];
+                    filesystem.writeReqFile('conf', confObj);
+                }
+            } else if (input.flags['r']) {
+                filesystem.writeReqFile('conf', {});
+                core.output('/req/conf.rf: cleared');
+            } else core.output('usage: conf -u|-r|-w <key> <value>');
         },
         description: 'Update or remove configuration files (WIP)'
     },
@@ -431,13 +452,13 @@ var filesystem = {
 	readDir: function(str) {
 		str = str || "";
 		var locationObject = this.getObjectForLocation(this.getFullLocation(str)),
-			outputString = '';
+			outputArray = [];
 
 		$.each(locationObject, function(i, obj) {
-			outputString += i + '   ';
+			outputArray.push(i);
 		});
 
-		return outputString;
+		return outputArray;
 	},
 
 	createDir: function(str, origin) {
@@ -641,6 +662,34 @@ var utility = {
         if (win) win.focus();
         else core.output('Popup suppressed by browser');
     },
+
+    parseFlags: function(args) {
+    	args.shift();
+    	var flags = {},
+    		values = [];
+
+    	$.each(args, function(i, obj) {
+    		if (obj.substring(0,1) === '-') {
+
+    			// Full-word flags as in --version
+    			if (obj.substring(0,2) === '--') flags[obj.substring(2)] = true;
+
+    			// Single-char flags as in -v or -alh
+    			else {
+    				$.each(obj.substring(1).split(''), function(i, obj) {
+    					flags[obj] = true;
+    				});
+    			}
+    		} else {
+    			values.push(obj);
+    		}
+    	});
+
+    	return {
+    		flags: flags,
+    		vals: values
+    	}
+	},
 
     parseConfig: function(key, val) {
         // TODO
