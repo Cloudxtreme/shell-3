@@ -831,7 +831,7 @@ var utility = {
             img.onload = function () {
                 resolve(img);
             };
-            img.onerror = function () {
+            img.onerror = function (err) {
                 reject(url);
             };
             img.src = url + '?random-no-cache=' + Math.floor((1 + Math.random()) * 0x10000).toString(16);
@@ -852,10 +852,7 @@ var utility = {
                 delta *= (multiplier || 1);
                 resolve(delta);
             };
-            var failedResponse = function() {
-            	reject("Could not find host " + url);
-            };
-            this.requestImage(url).then(response).catch(failedResponse);
+            this.requestImage(url).then(response).catch(response);
 
             // Set a timeout for max-pings, 5s.
             setTimeout(function () {
