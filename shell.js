@@ -852,7 +852,10 @@ var utility = {
                 delta *= (multiplier || 1);
                 resolve(delta);
             };
-            this.requestImage(url).then(response).catch(response);
+            var failedResponse = function() {
+            	reject("Could not find host " + url);
+            };
+            this.requestImage(url).then(response).catch(failedResponse);
 
             // Set a timeout for max-pings, 5s.
             setTimeout(function () {
