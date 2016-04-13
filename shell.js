@@ -337,7 +337,7 @@ var commands = {
     },
 
     ping: {
-        action: function (args) {
+        action: function (args, processId) {
             if (!args[1]) {
                 core.output('usage: ping <domain>');
                 return false;
@@ -348,16 +348,19 @@ var commands = {
             if (!/^https?:\/\//i.test(urlToPing)) urlToPing = 'http://' + urlToPing;
 
             utility.pingUrl(urlToPing, 0.3).then(function(delta) {
-                core.output('Answer by ' + urlToPing + ' Time=' + Math.round(delta) + 'ms');
+                core.output('Answer by ' + urlToPing + ' Time=' + Math.round(delta) + 'ms', false, processId);
+                core.quitRun();
             }).catch(function(error) {
-                core.output(String(error));
+                core.output(String(error), false, processId);
+                core.quitRun();
             });
+            return "suspend-input";
         },
         description: 'Ping a webserver.'
     },
 
     lookup: {
-        action: function (args) {
+        action: function (args, processId) {
             if (!args[1]) {
                 core.output('usage: lookup <domain>');
                 return false;
@@ -365,10 +368,13 @@ var commands = {
             var input = utility.parseFlags(args);
 
             utility.getIp(input.vals[0]).then(function(answer) {
-                core.output(answer);
+                core.output(answer, false, processId);
+                core.quitRun();
             }).catch(function(error) {
-                core.output(error);
+                core.output(error, false, processId);
+                core.quitRun();
             });
+            return "suspend-input";
         },
         description: 'Request ip of a domain'
     }
@@ -381,7 +387,9 @@ var core = {
 	vars: {
 		inputActive: true,
 		inputHistory: [],
-		inputHistoryPosition: null
+		inputHistoryPosition: null,
+
+        activePID: false
 	},
 
 	focusInput: function() {
@@ -402,17 +410,28 @@ var core = {
 		$('#input').val('').focus();
 
 		if (input) {
-			this.runCommand(inputArray);
+            this.vars.activePID = (new Date).getTime();
+			var commandAnswer = this.runCommand(inputArray, this.vars.activePID);
+            if (commandAnswer) this.quitRun();
 			this.vars.inputHistory.push(input);
 		}
-		this.activateInput();
+		else this.activateInput();
 	},
 
-	runCommand: function(inputArray) {
+	runCommand: function(inputArray, processID) {
 		if (commands[inputArray[0]]) {
-			commands[inputArray[0]].action(inputArray);
+			var commandAnswer = commands[inputArray[0]].action(inputArray, processID);
+            return commandAnswer !== "suspend-input";
+            /**
+             * Note: Functions that run asynchronously need to return "suspend-input",
+             * everything suspends input natively by nature of parseInput().
+             * These commends use the passed "processID" to verify delayed output.
+             * If the process is no longer active (core.quitRun()), these outputs
+             * will be suppressed.
+             */
 		} else {
 			this.output(inputArray[0] + ': command not found');
+            return true;
 		}
 	},
 
@@ -429,7 +448,8 @@ var core = {
 			.focus();
 	},
 
-	output: function(str, doBash) {
+	output: function(str, doBash, pidVerify) {
+        if (pidVerify && pidVerify !== this.vars.activePID) return false;
 		var classString = (doBash) ? 'output-block output-block-bash' : 'output-block',
 			escapedString = $('<div/>').text(str).html().replace(/\n/g, "<br />");
 
@@ -442,6 +462,15 @@ var core = {
 		window.scrollTo(0,document.body.scrollHeight);
 
 	},
+
+    quitRun: function() {
+        this.vars.activePID = false;
+        if (!this.vars.inputActive) this.activateInput();
+        else {
+            this.output($('#input').val(), true);
+            $('#input').val('').focus();
+        }
+    },
 
 	clearOutput: function() {
 		$('#output').html('');
@@ -673,17 +702,32 @@ $(function() {
 	core.runCommand(['uname', '-a']);
 	core.runCommand(['lstore', '-r']);
 
+    var ctrlDown = false;
+
 	// Up/Down Arrow Detection
-	$(document).keydown(function(e) {
-		if (e.which === 38) {
-            e.preventDefault();
-			core.checkInputHistory();
-		} else if (e.which === 40) {
-            e.preventDefault();
-			core.resetHistory();
-			$('#input').val('').focus();
-		}
-	});
+	$(document)
+        .keydown(function(e) {
+            if (e.which === 38) {
+                e.preventDefault();
+                core.checkInputHistory();
+            } else if (e.which === 40) {
+                e.preventDefault();
+                core.resetHistory();
+                $('#input').val('').focus();
+            } else if (e.which === 17) {
+                ctrlDown = true;
+            } else if (e.which === 67) {
+                if (ctrlDown) {
+                    e.preventDefault();
+                    core.quitRun();
+                }
+            }
+        })
+        .keyup(function(e) {
+            if(e.which === 17) {
+                ctrlDown = false;
+            }
+        });
 });
 
 var utility = {
