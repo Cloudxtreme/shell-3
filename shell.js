@@ -1,13 +1,8 @@
-
-$(function() {
-	$('#input').focus()
-});
-
 var env = {
 	osName: 'jsTerm',
 	host: 'localhost',
 	user: 'root',
-	version: '0.0.9'
+	version: '0.1.4'
 };
 
 var commands = {
@@ -23,7 +18,7 @@ var commands = {
 
 	echo: {
 		action: function(args) {
-            args.splice(0,1);
+            args.shift();
             var outputString = args.join(' ');
 			core.output(outputString);
 		},
@@ -77,9 +72,18 @@ var commands = {
 				foundArray = filesystem.readDir(input.vals[0]),
 				output = "";
 
+			foundArray.unshift({name:".",type:"folder"},{name:"..",type:"folder"});
+
 			$.each(foundArray, function(i, obj) {
-				if (obj.substring(0,1) === "." && !input.flags["a"]) return true;
-				output += obj + ' ';
+				if (obj.name.substring(0,1) === "." && !input.flags["a"]) return true;
+
+				if (input.flags["l"]) {
+					var directoryFlag = (obj.type === "folder") ? "d" : "-";
+					output += directoryFlag + 'rwxr-xr-x 1 root ' + obj.name + ' \n';
+				} else {
+					output += obj.name + ' ';
+				}
+				
 			});
 
 			core.output(output);
@@ -90,6 +94,7 @@ var commands = {
 
 	cd: {
 		action: function(args) {
+            if (args[1] === ".") return true;
 			var navDirAnswer = filesystem.navigateDir(args[1]);
 			if (!navDirAnswer) core.output(args[1] + ': no such directory');
 		},
@@ -218,7 +223,7 @@ var commands = {
                     core.output(input.vals[0] + ' - ' + input.vals[1] + ': written to /req/fav.rf');
                     core.runCommand(['lstore', '-ws']);
 
-                };
+                }
             } else if (input.flags['r']) {
                 if (!input.vals[1]) core.output('usage: nt -r <group> <name>');
                 else {
@@ -233,7 +238,7 @@ var commands = {
                     filesystem.writeReqFile('fav', favObj);
                     core.output(input.vals[0] + ' - ' + input.vals[1] + ': written to /req/fav.rf');
 
-                };
+                }
             } else if (input.flags['l']) {
                 var favObj = filesystem.readReqFile('fav', false);
                 if (favObj === false) core.output('/req/fav.rf: no such file');
@@ -323,16 +328,53 @@ var commands = {
         action: function(args) {
             if (!args[1]) core.output('usage: search <string>');
             else {
-                args.splice(0,1);
+                args.shift();
                 var searchString = args.join(' ');
                 utility.openTab("https://www.google.de/#q=" + searchString);
             }
         },
         description: 'Search for the string with a search engine'
+    },
+
+    ping: {
+        action: function (args) {
+            if (!args[1]) {
+                core.output('usage: ping <domain>');
+                return false;
+            }
+            var input = utility.parseFlags(args),
+                urlToPing = input.vals[0];
+
+            if (!/^https?:\/\//i.test(urlToPing)) urlToPing = 'http://' + urlToPing;
+
+            utility.pingUrl(urlToPing, 0.3).then(function(delta) {
+                core.output('Answer by ' + urlToPing + ' Time=' + Math.round(delta) + 'ms');
+            }).catch(function(error) {
+                core.output(String(error));
+            });
+        },
+        description: 'Ping a webserver.'
+    },
+
+    lookup: {
+        action: function (args) {
+            if (!args[1]) {
+                core.output('usage: lookup <domain>');
+                return false;
+            }
+            var input = utility.parseFlags(args);
+
+            utility.getIp(input.vals[0]).then(function(answer) {
+                core.output(answer);
+            }).catch(function(error) {
+                core.output(error);
+            });
+        },
+        description: 'Request ip of a domain'
     }
 
 
-}
+};
 
 var core = {
 
@@ -388,12 +430,13 @@ var core = {
 	},
 
 	output: function(str, doBash) {
-		var classString = (doBash) ? 'output-block output-block-bash' : 'output-block';
+		var classString = (doBash) ? 'output-block output-block-bash' : 'output-block',
+			escapedString = $('<div/>').text(str).html().replace(/\n/g, "<br />");
 
 		$('<div/>', {
 			class: classString
 		})
-			.text(str)
+			.html(escapedString)
 			.appendTo('#output');
 
 		window.scrollTo(0,document.body.scrollHeight);
@@ -421,10 +464,10 @@ var core = {
 		else this.vars.inputHistoryPosition++;
 
 		var checkedHistory = this.getInputHistory(this.vars.inputHistoryPosition);
-		if (checkedHistory !== false) $('#input').val(checkedHistory).putCursorAtEnd();
+		if (checkedHistory !== false) $('#input').val(checkedHistory);
 	}
 
-}
+};
 
 var filesystem = {
 
@@ -455,7 +498,10 @@ var filesystem = {
 			outputArray = [];
 
 		$.each(locationObject, function(i, obj) {
-			outputArray.push(i);
+			outputArray.push({
+				name: i,
+				type: obj.type
+			});
 		});
 
 		return outputArray;
@@ -583,8 +629,7 @@ var filesystem = {
 
 	checkIfFileExists: function(obj, name) {
 		if (obj[name]) {
-			if (obj[name].type == 'file') return true;
-			else return false;
+			return obj[name].type == 'file';
 		} else {
 			return false;
 		}
@@ -592,8 +637,7 @@ var filesystem = {
 
 	checkIfFolderExists: function(obj, name) {
 		if (obj[name]) {
-			if (obj[name].type == 'folder') return true;
-			else return false;
+			return obj[name].type == 'folder';
 		} else {
 			return false;
 		}
@@ -621,7 +665,7 @@ var filesystem = {
     writeReqFile: function(name, object) {
         filesystem.writeFile('/req/' + name + '.rf', JSON.stringify(object));
     }
-}
+};
 
 $(function() {
 	// Startup
@@ -632,8 +676,10 @@ $(function() {
 	// Up/Down Arrow Detection
 	$(document).keydown(function(e) {
 		if (e.which === 38) {
+            e.preventDefault();
 			core.checkInputHistory();
 		} else if (e.which === 40) {
+            e.preventDefault();
 			core.resetHistory();
 			$('#input').val('').focus();
 		}
@@ -642,61 +688,61 @@ $(function() {
 
 var utility = {
 
-	currentDate: function() {
-		return new Date();
-	},
+    currentDate: function () {
+        return new Date();
+    },
 
-    getByteCount: function(s) {
+    getByteCount: function (s) {
         return encodeURI(s).split(/%..|./).length - 1;
     },
 
-    bytesToSize: function(bytes) {
+    bytesToSize: function (bytes) {
         var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         if (bytes == 0) return '0 Byte';
         var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
         return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
     },
 
-    openTab: function(url) {
+    openTab: function (url) {
         var win = window.open(url, '_blank');
         if (win) win.focus();
         else core.output('Popup suppressed by browser');
     },
 
-    parseFlags: function(args) {
-    	args.shift();
-    	var flags = {},
-    		values = [];
+    parseFlags: function (args) {
+        args.shift();
+        var flags = {},
+            values = [];
 
-    	$.each(args, function(i, obj) {
-    		if (obj.substring(0,1) === '-') {
+        $.each(args, function (i, obj) {
+            if (obj.substring(0, 1) === '-') {
 
-    			// Full-word flags as in --version
-    			if (obj.substring(0,2) === '--') flags[obj.substring(2)] = true;
+                // Full-word flags as in --version
+                if (obj.substring(0, 2) === '--') flags[obj.substring(2)] = true;
 
-    			// Single-char flags as in -v or -alh
-    			else {
-    				$.each(obj.substring(1).split(''), function(i, obj) {
-    					flags[obj] = true;
-    				});
-    			}
-    		} else {
-    			values.push(obj);
-    		}
-    	});
+                // Single-char flags as in -v or -alh
+                else {
+                    $.each(obj.substring(1).split(''), function (i, obj) {
+                        flags[obj] = true;
+                    });
+                }
+            } else {
+                values.push(obj);
+            }
+        });
 
-    	return {
-    		flags: flags,
-    		vals: values
-    	}
-	},
+        return {
+            flags: flags,
+            vals: values
+        }
+    },
 
-    parseConfig: function(key, val) {
+    parseConfig: function (key, val) {
         // TODO
         //$('#shell').css(key, val);
     },
 
-    setValue: function(object, path, value) {
+    setValue: function (object, path, value) {
         var a = path.split('.');
         var o = object;
         for (var i = 0; i < a.length - 1; i++) {
@@ -711,7 +757,7 @@ var utility = {
         o[a[a.length - 1]] = value;
     },
 
-    getValue: function(object, path) {
+    getValue: function (object, path) {
         var o = object;
         path = path.replace(/\[(\w+)\]/g, '.$1');
         path = path.replace(/^\./, '');
@@ -725,29 +771,68 @@ var utility = {
             }
         }
         return o;
+    },
+
+    // Network
+
+    /**
+     * Creates and loads an image element by url.
+     * @param  {String} url
+     * @return {Promise} promise that resolves to an image element or
+     *                   fails to an Error.
+     */
+    requestImage: function (url) {
+        return new Promise(function (resolve, reject) {
+            var img = new Image();
+            img.onload = function () {
+                resolve(img);
+            };
+            img.onerror = function () {
+                reject(url);
+            };
+            img.src = url + '?random-no-cache=' + Math.floor((1 + Math.random()) * 0x10000).toString(16);
+        });
+    },
+
+    /**
+     * Pings a url.
+     * @param  {String} url
+     * @param  {Number} multiplier - optional, factor to adjust the ping by.  0.3 works well for HTTP servers.
+     * @return {Promise} promise that resolves to a ping (ms, float).
+     */
+    pingUrl: function (url, multiplier) {
+        return new Promise(function (resolve, reject) {
+            var start = (new Date()).getTime();
+            var response = function () {
+                var delta = ((new Date()).getTime() - start);
+                delta *= (multiplier || 1);
+                resolve(delta);
+            };
+            this.requestImage(url).then(response).catch(response);
+
+            // Set a timeout for max-pings, 5s.
+            setTimeout(function () {
+                reject(Error('Timeout'));
+            }, 2500);
+        }.bind(this));
+    },
+
+    /**
+     * Fetches ip of an url.
+     * @param {String} domain
+     * @returns {Promise} promise that resolves to an ip (String)
+     */
+    getIp: function (domain) {
+        domain = domain.replace('http://','').replace('https://','');
+        return new Promise(function(resolve, reject) {
+            var oReq = new XMLHttpRequest();
+
+            oReq.onload = function () { resolve(this.responseText); };
+            oReq.onerror = function() { reject('Request failed'); };
+
+            oReq.open("get", "http://cors.io?u=http://api.konvert.me/forward-dns/" + domain, true);
+            oReq.send();
+        });
     }
-
-}
-
-jQuery.fn.putCursorAtEnd = function() {
-
-  return this.each(function() {
-
-    $(this).focus();
-
-    if (this.setSelectionRange) {
-
-      var len = $(this).val().length * 2;
-
-      this.setSelectionRange(len, len);
-    
-    } else {
-
-      $(this).val($(this).val());
-      
-    }
-
-  });
-
 };
 
