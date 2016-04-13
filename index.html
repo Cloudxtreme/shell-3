@@ -10,22 +10,26 @@
 </head>
 <body>
 
-	<div id="wrapper">
-		
-		<div id="shell">
+    <div id="terminal">
 
-			<div id="output"></div>
-			
-			<form onsubmit="core.parseInput(); return false;" id="input-wrap">
-				<input type="text" autofocus="true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="" id="input" onclick="">
-				<button>Go!</button>
-			</form>
+            <div id="wrapper">
 
-		</div>
+                <div id="shell">
 
-	</div>
+                    <div id="output"></div>
 
-	<div id="underlay" onclick="core.focusInput()"></div>
+                    <form onsubmit="core.parseInput(); return false;" id="input-wrap">
+                        <input type="text" autofocus="true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="" id="input" onclick="">
+                        <button>Go!</button>
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div id="underlay" onclick="core.focusInput()"></div>
+
+    </div>
 
 </body>
 </html>
